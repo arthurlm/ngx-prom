@@ -22,15 +22,40 @@ Cons:
 
 Using docker:
 
-    docker run --rm \
-        --name ngx-prom \
-        -e RUST_LOG=info \
-        -v /var/log/nginx:/log \
-        arthurlm/ngx-prom:latest ngx-prom /log/access.log
+```sh
+docker run --rm \
+    --name ngx-prom \
+    -e RUST_LOG=info \
+    -v /var/log/nginx:/log \
+    arthurlm/ngx-prom:latest ngx-prom /log/access.log
+```
 
 Using shell:
 
-    ngx-prom /var/log/nginx/access.log
+```sh
+ngx-prom /var/log/nginx/access.log
+```
+
+## Available options
+
+```text
+Nginx to Prometheus 0.1
+Nginx to Prometheus basic metrics exporter
+
+USAGE:
+    ngx-prom [OPTIONS] <access_log>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -a, --address <address>        Bind server to this address and port [default: 0.0.0.0:5000]
+    -n, --namespace <namespace>    Prometheus namespace to prefix metrics with [default: nginx]
+
+ARGS:
+    <access_log>    Access log file to attach
+```
 
 ## DONE and TODO
 
