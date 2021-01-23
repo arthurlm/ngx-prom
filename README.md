@@ -22,5 +22,5 @@ Cons:
 - [x] Nginx logs parsing + attach to logs
 - [x] Expose metrics
 - [x] Guard on parser thread panic
-- [ ] Docker image
+- [x] Docker image
 - [ ] Docs
