@@ -16,6 +16,21 @@ Pros:
 Cons:
 
 - Not so much features
+- Not so much metrics for now
+
+## How to use it
+
+Using docker:
+
+    docker run --rm \
+        --name ngx-prom \
+        -e RUST_LOG=info \
+        -v /var/log/nginx:/log \
+        arthurlm/ngx-prom:latest ngx-prom /log/access.log
+
+Using shell:
+
+    ngx-prom /var/log/nginx/access.log
 
 ## DONE and TODO
 
