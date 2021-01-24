@@ -1,9 +1,10 @@
-use prometheus::{IntCounterVec, Opts, Registry};
+use prometheus::{IntCounter, IntCounterVec, Opts, Registry};
 
 #[derive(Debug)]
 pub struct Metrics {
     pub http_response_code_total: IntCounterVec,
     pub http_response_body_size_total: IntCounterVec,
+    pub parse_error: IntCounter,
 }
 
 impl Metrics {
@@ -27,6 +28,10 @@ impl Metrics {
                 &["method", "path", "protocol"],
             )
             .unwrap(),
+            parse_error: IntCounter::with_opts(
+                Opts::new("parse_error", "Parse log error count").namespace(namespace),
+            )
+            .unwrap(),
         }
     }
 
@@ -36,6 +41,9 @@ impl Metrics {
             .unwrap();
         registry
             .register(Box::new(self.http_response_body_size_total.clone()))
+            .unwrap();
+        registry
+            .register(Box::new(self.parse_error.clone()))
             .unwrap();
     }
 }
