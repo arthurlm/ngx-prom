@@ -11,7 +11,7 @@ impl PanicGuard {
 impl Drop for PanicGuard {
     fn drop(&mut self) {
         if thread::panicking() {
-            log::error!("Thread as panic");
+            log::error!("Thread panic");
             process::exit(1);
         }
     }

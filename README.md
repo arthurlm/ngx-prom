@@ -15,8 +15,8 @@ Pros:
 
 Cons:
 
-- Not so much features
-- Not so much metrics for now
+- Not so many features
+- Not so many metrics for now
 
 ## How to use it
 
