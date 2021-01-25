@@ -3,7 +3,7 @@ mod metrics;
 mod parser;
 mod reader;
 
-use actix_web::{get, App, HttpResponse, HttpServer};
+use actix_web::{get, middleware::Logger, App, HttpResponse, HttpServer};
 use actix_web_prom::PrometheusMetrics;
 use dotenv::dotenv;
 use std::{io, thread};
@@ -66,8 +66,13 @@ async fn main() -> io::Result<()> {
             crate::reader::attach_file(filename, metrics).expect("Parser panic");
         })?;
 
-    HttpServer::new(move || App::new().wrap(prometheus.clone()).service(health))
-        .bind(server_addr)?
-        .run()
-        .await
+    HttpServer::new(move || {
+        App::new()
+            .wrap(Logger::default())
+            .wrap(prometheus.clone())
+            .service(health)
+    })
+    .bind(server_addr)?
+    .run()
+    .await
 }
