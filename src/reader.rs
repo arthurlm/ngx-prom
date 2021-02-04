@@ -15,13 +15,20 @@ fn process_line(line: &str, metrics: &Metrics) {
     if let Ok(row) = LogRow::from_str(&line) {
         log::debug!("{:?}", row);
 
+        let status = format!("{}", row.response_status);
+
+        metrics
+            .http_response_total
+            .with_label_values(&[&status])
+            .inc();
+
         metrics
             .http_response_code_total
             .with_label_values(&[
                 &row.request_method,
                 &row.request_path,
                 &row.request_protocol,
-                &format!("{}", row.response_status),
+                &status,
             ])
             .inc();
 
@@ -106,6 +113,9 @@ mod tests {
              # HELP test_http_response_code_total Count of HTTP request per request info and response code\n\
              # TYPE test_http_response_code_total counter\n\
              test_http_response_code_total{method=\"GET\",path=\"/favicon.ico\",protocol=\"HTTP/1.1\",status=\"404\"} 1\n\
+             # HELP test_http_response_total Number of HTTP request by status code\n\
+             # TYPE test_http_response_total counter\n\
+             test_http_response_total{status=\"404\"} 1\n\
              # HELP test_parse_error Parse log error count\n\
              # TYPE test_parse_error counter\n\
              test_parse_error 0\n\

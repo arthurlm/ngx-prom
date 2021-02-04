@@ -2,6 +2,7 @@ use prometheus::{IntCounter, IntCounterVec, Opts, Registry};
 
 #[derive(Debug)]
 pub struct Metrics {
+    pub http_response_total: IntCounterVec,
     pub http_response_code_total: IntCounterVec,
     pub http_response_body_size_total: IntCounterVec,
     pub parse_error: IntCounter,
@@ -10,6 +11,15 @@ pub struct Metrics {
 impl Metrics {
     pub fn new(namespace: &str) -> Self {
         Self {
+            http_response_total: IntCounterVec::new(
+                Opts::new(
+                    "http_response_total",
+                    "Number of HTTP request by status code",
+                )
+                .namespace(namespace),
+                &["status"],
+            )
+            .unwrap(),
             http_response_code_total: IntCounterVec::new(
                 Opts::new(
                     "http_response_code_total",
@@ -36,14 +46,27 @@ impl Metrics {
     }
 
     pub fn register(&self, registry: &Registry) {
-        registry
-            .register(Box::new(self.http_response_code_total.clone()))
-            .unwrap();
-        registry
-            .register(Box::new(self.http_response_body_size_total.clone()))
-            .unwrap();
-        registry
-            .register(Box::new(self.parse_error.clone()))
-            .unwrap();
+        macro_rules! register_metric {
+            ($metric:expr) => {
+                registry.register(Box::new($metric.clone())).unwrap()
+            };
+        }
+
+        register_metric!(self.http_response_total);
+        register_metric!(self.http_response_code_total);
+        register_metric!(self.http_response_body_size_total);
+        register_metric!(self.parse_error);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_do_not_panic() {
+        let registry = Registry::new();
+        let metric = Metrics::new("test_ns");
+        metric.register(&registry);
     }
 }
