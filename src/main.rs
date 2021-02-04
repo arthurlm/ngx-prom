@@ -1,4 +1,5 @@
 mod guard;
+mod init_helpers;
 mod metrics;
 mod parser;
 mod reader;
@@ -58,6 +59,8 @@ async fn main() -> io::Result<()> {
     let prometheus = PrometheusMetrics::new("api", Some("/metrics"), None);
     let metrics = metrics::Metrics::new(namespace);
     metrics.register(&prometheus.registry);
+
+    init_helpers::fill_counter(&metrics.http_response_total);
 
     thread::Builder::new()
         .name("parser".to_owned())
