@@ -36,25 +36,55 @@ Using shell:
 ngx-prom /var/log/nginx/access.log
 ```
 
+## Served metrics example
+
+Example of response from `/metrics` route:
+
+```text
+# HELP nginx_http_response_body_size_total Size of HTTP request per request info
+# TYPE nginx_http_response_body_size_total counter
+nginx_http_response_body_size_total{method="GET",path="/",protocol="HTTP/1.1"} 274
+nginx_http_response_body_size_total{method="GET",path="/favicon.ico",protocol="HTTP/1.1"} 134
+
+# HELP nginx_http_response_code_total Count of HTTP request per request info and response code
+# TYPE nginx_http_response_code_total counter
+nginx_http_response_code_total{method="GET",path="/",protocol="HTTP/1.1",status="200"} 1
+nginx_http_response_code_total{method="GET",path="/",protocol="HTTP/1.1",status="304"} 5
+nginx_http_response_code_total{method="GET",path="/favicon.ico",protocol="HTTP/1.1",status="404"} 1
+
+# HELP nginx_http_response_total Number of HTTP request by status code
+# TYPE nginx_http_response_total counter
+nginx_http_response_total{status="200"} 1
+nginx_http_response_total{status="304"} 5
+nginx_http_response_total{status="404"} 1
+
+# HELP nginx_parse_error Parse log error count
+# TYPE nginx_parse_error counter
+nginx_parse_error 0
+```
+
 ## Available options
 
 ```text
-Nginx to Prometheus 0.1
+ngx-prom 0.1
 Nginx to Prometheus basic metrics exporter
 
 USAGE:
-    ngx-prom [OPTIONS] <access_log>
+    ngx-prom [FLAGS] [OPTIONS] <access-log>
+
+ARGS:
+    <access-log>    Access log file to attach
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help                     Prints help information
+        --metric-response-size     Enable http response size counter
+        --metric-status-details    Enable http status code details counter
+        --metric-status-short      Enable http status code simple counter
+    -V, --version                  Prints version information
 
 OPTIONS:
     -a, --address <address>        Bind server to this address and port [default: 0.0.0.0:5000]
     -n, --namespace <namespace>    Prometheus namespace to prefix metrics with [default: nginx]
-
-ARGS:
-    <access_log>    Access log file to attach
 ```
 
 ## DONE and TODO
@@ -63,4 +93,4 @@ ARGS:
 - [x] Expose metrics
 - [x] Guard on parser thread panic
 - [x] Docker image
-- [ ] Docs
+- [x] Docs
