@@ -11,6 +11,7 @@ use dotenv::dotenv;
 use std::{io, thread};
 
 use crate::guard::PanicGuard;
+use crate::reader::{attach_file, EnabledMetric};
 
 #[get("/health")]
 fn health() -> HttpResponse {
@@ -18,7 +19,7 @@ fn health() -> HttpResponse {
 }
 
 /// Nginx to Prometheus basic metrics exporter
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(version = "0.1")]
 struct Opts {
     /// Access log file to attach
@@ -31,6 +32,28 @@ struct Opts {
     /// Bind server to this address and port
     #[clap(short, long, default_value = "0.0.0.0:5000")]
     address: String,
+
+    /// Enable http status code simple counter
+    #[clap(long)]
+    metric_status_short: bool,
+
+    /// Enable http status code details counter
+    #[clap(long)]
+    metric_status_details: bool,
+
+    /// Enable http response size counter
+    #[clap(long)]
+    metric_response_size: bool,
+}
+
+impl From<Opts> for EnabledMetric {
+    fn from(opts: Opts) -> Self {
+        EnabledMetric {
+            response_status_short: opts.metric_status_short,
+            response_status_full: opts.metric_status_details,
+            response_size: opts.metric_response_size,
+        }
+    }
 }
 
 #[actix_web::main]
@@ -39,10 +62,7 @@ async fn main() -> io::Result<()> {
     env_logger::init();
 
     let opts = Opts::parse();
-
-    /*
-    let server_addr = matches.value_of("address").expect("Cannot read arg");
-    */
+    let enabled: EnabledMetric = opts.clone().into();
 
     let prometheus = PrometheusMetrics::new("api", Some("/metrics"), None);
     let metrics = metrics::Metrics::new(&opts.namespace);
@@ -56,7 +76,7 @@ async fn main() -> io::Result<()> {
         .name("parser".to_owned())
         .spawn(move || {
             let _guard = PanicGuard::new();
-            crate::reader::attach_file(&access_log, metrics).expect("Parser panic");
+            attach_file(&access_log, metrics, enabled).expect("Parser panic");
         })?;
 
     HttpServer::new(move || {

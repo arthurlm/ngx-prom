@@ -11,35 +11,48 @@ use crate::parser::LogRow;
 
 static DURATION_NEXT_RETRY: Duration = Duration::from_millis(50);
 
-fn process_line(line: &str, metrics: &Metrics) {
+#[derive(Debug)]
+pub struct EnabledMetric {
+    pub response_status_short: bool,
+    pub response_status_full: bool,
+    pub response_size: bool,
+}
+
+fn process_line(line: &str, metrics: &Metrics, enabled: &EnabledMetric) {
     if let Ok(row) = LogRow::from_str(&line) {
         log::debug!("{:?}", row);
 
         let status = format!("{}", row.response_status);
 
-        metrics
-            .http_response_total
-            .with_label_values(&[&status])
-            .inc();
+        if enabled.response_status_short {
+            metrics
+                .http_response_total
+                .with_label_values(&[&status])
+                .inc();
+        }
 
-        metrics
-            .http_response_code_total
-            .with_label_values(&[
-                &row.request_method,
-                &row.request_path,
-                &row.request_protocol,
-                &status,
-            ])
-            .inc();
+        if enabled.response_status_full {
+            metrics
+                .http_response_code_total
+                .with_label_values(&[
+                    &row.request_method,
+                    &row.request_path,
+                    &row.request_protocol,
+                    &status,
+                ])
+                .inc();
+        }
 
-        metrics
-            .http_response_body_size_total
-            .with_label_values(&[
-                &row.request_method,
-                &row.request_path,
-                &row.request_protocol,
-            ])
-            .inc_by(row.response_body_bytes_sent);
+        if enabled.response_size {
+            metrics
+                .http_response_body_size_total
+                .with_label_values(&[
+                    &row.request_method,
+                    &row.request_path,
+                    &row.request_protocol,
+                ])
+                .inc_by(row.response_body_bytes_sent);
+        }
     } else {
         log::warn!("Fail to process line: {}", line);
 
@@ -47,7 +60,11 @@ fn process_line(line: &str, metrics: &Metrics) {
     }
 }
 
-pub fn attach_file<P>(filename: P, metrics: Metrics) -> Result<(), io::Error>
+pub fn attach_file<P>(
+    filename: P,
+    metrics: Metrics,
+    enabled: EnabledMetric,
+) -> Result<(), io::Error>
 where
     P: AsRef<Path> + Display,
 {
@@ -65,7 +82,7 @@ where
                 thread::sleep(DURATION_NEXT_RETRY);
             }
             Ok(_) => {
-                process_line(&line, &metrics);
+                process_line(&line, &metrics, &enabled);
 
                 line.clear();
             }
@@ -99,12 +116,22 @@ mod tests {
         }};
     }
 
+    macro_rules! enabled_metrics {
+        () => {
+            EnabledMetric {
+                response_status_short: true,
+                response_status_full: true,
+                response_size: true,
+            }
+        };
+    }
+
     #[test]
     fn test_valid_line() {
         let (registry, metrics_collection) = metrics!();
         let line = r#"192.168.1.84 - - [22/Jan/2021:17:24:13 +0000] "GET /favicon.ico HTTP/1.1" 404 134 "http://serv-lemoigne/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:84.0) Gecko/20100101 Firefox/84.0""#;
 
-        process_line(line, &metrics_collection);
+        process_line(line, &metrics_collection, &enabled_metrics!());
 
         assert_eq!(
             gather_metrics!(registry),
@@ -129,7 +156,7 @@ mod tests {
         let (registry, metrics_collection) = metrics!();
         let line = "error";
 
-        process_line(line, &metrics_collection);
+        process_line(line, &metrics_collection, &enabled_metrics!());
 
         assert_eq!(
             gather_metrics!(registry),
