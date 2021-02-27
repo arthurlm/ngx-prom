@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 use std::str::FromStr;
 use std::thread;
@@ -52,7 +52,8 @@ where
     P: AsRef<Path> + Display,
 {
     log::info!("Processing data from: {}", filename);
-    let file = File::open(filename)?;
+    let mut file = File::open(filename)?;
+    file.seek(SeekFrom::End(0))?;
 
     let mut reader = BufReader::new(file);
     let mut line = String::new();
