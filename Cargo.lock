@@ -1092,6 +1092,7 @@ dependencies = [
  "log",
  "prometheus",
  "regex",
+ "thiserror",
 ]
 
 [[package]]

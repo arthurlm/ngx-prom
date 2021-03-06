@@ -4,6 +4,7 @@ use regex::Regex;
 use std::net::{self, IpAddr};
 use std::num::ParseIntError;
 use std::str::FromStr;
+use thiserror::Error;
 
 static RE_ROW_EXPR: &str = r#"^(?P<remote_addr>\S+) - (?P<remote_user>.*) \[(?P<time_local>.+)\] "(?P<request_method>\S+) (?P<request_path>\S+) (?P<request_protocol>\S+)" (?P<response_status>\d\d\d) (?P<response_body_bytes_sent>\d+) "(?P<http_referer>[^"]+)" "(?P<http_user_agent>[^"]+)""#;
 static NGINX_LOCAL_TIME_FMT: &str = r"%d/%b/%Y:%H:%M:%S %z"; // 22/Jan/2021:17:24:17 +0000
@@ -26,13 +27,27 @@ pub struct LogRow {
     pub http_user_agent: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Error)]
 pub enum ParseLogError {
+    /// Line does not match with Nginx regexp
+    #[error("no match")]
     NoMatch,
-    InvalidIpAddr(net::AddrParseError),
-    InvalidTime,
+
+    /// Cannot parse IP Addr
+    #[error("invalid ip addr: {0}")]
+    InvalidIpAddr(#[from] net::AddrParseError),
+
+    /// Invalid time format
+    #[error("invalid datetime")]
+    InvalidTime(#[from] chrono::ParseError),
+
+    /// Unknown HTTP status code
+    #[error("invalid http status: {0}")]
     InvalidStatusCode(u16),
-    InvalidNumber(ParseIntError),
+
+    /// Fail to parse number from line
+    #[error("fail to parse number: {0}")]
+    InvalidNumber(#[from] ParseIntError),
 }
 
 impl FromStr for LogRow {
@@ -43,27 +58,20 @@ impl FromStr for LogRow {
 
         let result = RE_ROW.captures(&value).ok_or(ParseLogError::NoMatch)?;
 
-        let response_status = result["response_status"]
-            .parse()
-            .map_err(ParseLogError::InvalidNumber)?;
-
+        let response_status = result["response_status"].parse()?;
         if response_status >= 600 || response_status < 100 {
             return Err(ParseLogError::InvalidStatusCode(response_status));
         }
 
         Ok(LogRow {
-            remote_addr: IpAddr::from_str(&result["remote_addr"])
-                .map_err(ParseLogError::InvalidIpAddr)?,
+            remote_addr: IpAddr::from_str(&result["remote_addr"])?,
             remote_user: result["remote_user"].to_owned(),
-            time_local: DateTime::parse_from_str(&result["time_local"], NGINX_LOCAL_TIME_FMT)
-                .map_err(|_e| ParseLogError::InvalidTime)?,
+            time_local: DateTime::parse_from_str(&result["time_local"], NGINX_LOCAL_TIME_FMT)?,
             request_method: result["request_method"].to_owned(),
             request_path: result["request_path"].to_owned(),
             request_protocol: result["request_protocol"].to_owned(),
             response_status,
-            response_body_bytes_sent: result["response_body_bytes_sent"]
-                .parse()
-                .map_err(ParseLogError::InvalidNumber)?,
+            response_body_bytes_sent: result["response_body_bytes_sent"].parse()?,
             http_referer: result["http_referer"].to_owned(),
             http_user_agent: result["http_user_agent"].to_owned(),
         })
@@ -108,7 +116,9 @@ mod tests {
             LogRow::from_str(
                 r#"192.168.1.129 - - [31/Feb/2021:17:24:16 +0000] "GET / HTTP/1.1" 304 0 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:84.0) Gecko/20100101 Firefox/84.0" 0.2"#
             ),
-            Err(ParseLogError::InvalidTime)
+            Err(ParseLogError::InvalidTime(
+                NaiveDate::from_str("2021-02-31").unwrap_err()
+            ))
         );
     }
 
